@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>筋肉解剖学暗記ドリル</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+.card-wrap { perspective: 1000px; }
+.card-inner { transform-style: preserve-3d; transition: transform 0.55s ease; cursor: pointer; }
+.card-inner.flipped { transform: rotateY(180deg); }
+.card-front, .card-back { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.card-back { transform: rotateY(180deg); }
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+</style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen p-4">
+<div class="max-w-2xl mx-auto">
+  <h1 class="text-2xl font-bold text-rose-400 mb-1">💪 筋肉解剖学暗記ドリル</h1>
+  <p class="text-gray-400 text-sm mb-4">人体の主要筋肉をフラッシュカードとクイズで学習</p>
+
+  <!-- タブ -->
+  <div class="flex rounded-xl overflow-hidden border border-gray-700 mb-4">
+    <button onclick="setTab('card')" id="tab-card" aria-label="カードモード"
+      class="flex-1 py-2 text-sm font-semibold transition bg-rose-600 text-white">🃏 カード</button>
+    <button onclick="setTab('quiz')" id="tab-quiz" aria-label="クイズモード"
+      class="flex-1 py-2 text-sm font-semibold transition bg-gray-800 text-gray-300 hover:bg-gray-700">❓ クイズ</button>
+    <button onclick="setTab('list')" id="tab-list" aria-label="一覧・進捗"
+      class="flex-1 py-2 text-sm font-semibold transition bg-gray-800 text-gray-300 hover:bg-gray-700">📋 一覧</button>
+  </div>
+
+  <!-- フィルター -->
+  <div class="flex flex-wrap gap-2 mb-4">
+    <div class="flex rounded-lg overflow-hidden border border-gray-700">
+      <button onclick="setRegion('all')" id="reg-all" aria-label="全部位" class="px-3 py-1.5 text-xs font-semibold transition bg-rose-600 text-white">全部位</button>
+      <button onclick="setRegion('上半身')" id="reg-上半身" aria-label="上半身" class="px-3 py-1.5 text-xs font-semibold transition bg-gray-800 text-gray-300 hover:bg-gray-700">上半身</button>
+      <button onclick="setRegion('下半身')" id="reg-下半身" aria-label="下半身" class="px-3 py-1.5 text-xs font-semibold transition bg-gray-800 text-gray-300 hover:bg-gray-700">下半身</button>
+      <button onclick="setRegion('体幹')" id="reg-体幹" aria-label="体幹" class="px-3 py-1.5 text-xs font-semibold transition bg-gray-800 text-gray-300 hover:bg-gray-700">体幹</button>
+    </div>
+    <span id="card-progress" class="text-xs text-gray-400 self-center"></span>
+  </div>
+
+  <!-- カードセクション -->
+  <div id="section-card">
+    <div class="card-wrap mb-4" style="height:240px;" onclick="flipCard()">
+      <div id="flash-card" class="card-inner relative w-full h-full" role="button" aria-label="カードをクリックして裏返す" tabindex="0">
+        <div class="card-front absolute inset-0 bg-gray-900 rounded-2xl border-2 border-rose-700 flex flex-col items-center justify-center p-6">
+          <div class="text-xs text-gray-500 mb-2">筋肉名（日本語）</div>
+          <div id="cf-jp" class="text-3xl font-bold text-rose-300 mb-2">-</div>
+          <div id="cf-region" class="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full"></div>
+          <div class="absolute bottom-4 text-xs text-gray-600">タップして詳細を確認</div>
+        </div>
+        <div class="card-back absolute inset-0 bg-gray-900 rounded-2xl border-2 border-blue-700 flex flex-col items-center justify-center p-5">
+          <div id="cb-en" class="text-xl font-bold text-blue-300 mb-3"></div>
+          <div class="w-full space-y-2 text-sm">
+            <div class="bg-gray-800 rounded-lg p-2">
+              <span class="text-gray-500 text-xs">機能: </span>
+              <span id="cb-func" class="text-gray-200"></span>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-2">
+              <span class="text-gray-500 text-xs">拮抗筋: </span>
+              <span id="cb-ant" class="text-yellow-300 font-semibold"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 習熟ステータスボタン -->
+    <div class="flex gap-2 mb-4">
+      <button onclick="setMastery('new')" aria-label="新規にマーク" class="flex-1 py-2 bg-gray-700 hover:bg-gray-600 rounded-xl text-xs font-semibold transition text-gray-300">
+        <span class="status-dot bg-gray-400 mr-1"></span>新規
+      </button>
+      <button onclick="setMastery('learning')" aria-label="学習中にマーク" class="flex-1 py-2 bg-yellow-900/50 hover:bg-yellow-800/50 rounded-xl text-xs font-semibold transition text-yellow-300 border border-yellow-800">
+        <span class="status-dot bg-yellow-400 mr-1"></span>学習中
+      </button>
+      <button onclick="setMastery('mastered')" aria-label="習得済みにマーク" class="flex-1 py-2 bg-green-900/50 hover:bg-green-800/50 rounded-xl text-xs font-semibold transition text-green-300 border border-green-800">
+        <span class="status-dot bg-green-400 mr-1"></span>習得済み
+      </button>
+    </div>
+
+    <div class="flex gap-3">
+      <button onclick="prevCard()" aria-label="前のカード" class="flex-1 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-xl text-sm transition">← 前へ</button>
+      <button onclick="nextCard()" aria-label="次のカード" class="flex-1 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-xl text-sm transition">次へ →</button>
+    </div>
+  </div>
+
+  <!-- クイズセクション -->
+  <div id="section-quiz" class="hidden">
+    <div class="bg-gray-900 rounded-2xl p-5 border border-gray-800 mb-4">
+      <div class="text-xs text-gray-500 mb-2 text-center">次の機能の筋肉は？</div>
+      <div id="quiz-func" class="text-lg text-gray-200 text-center mb-4 leading-relaxed px-2">-</div>
+      <div id="quiz-opts" class="grid grid-cols-2 gap-3"></div>
+      <div id="quiz-res" class="text-center mt-4 text-base font-bold hidden"></div>
+    </div>
+    <div class="flex justify-between text-sm text-gray-400 px-2">
+      <span>正解: <span id="qc" class="text-green-400 font-bold">0</span></span>
+      <span>不正解: <span id="qw" class="text-red-400 font-bold">0</span></span>
+      <span>正解率: <span id="qpct" class="text-rose-400 font-bold">-</span></span>
+    </div>
+  </div>
+
+  <!-- 一覧セクション -->
+  <div id="section-list" class="hidden">
+    <div class="grid grid-cols-3 gap-2 mb-4">
+      <div class="bg-gray-900 rounded-xl p-3 text-center border border-gray-800">
+        <div id="cnt-new" class="text-xl font-bold text-gray-300">0</div>
+        <div class="text-xs text-gray-500">新規</div>
+      </div>
+      <div class="bg-gray-900 rounded-xl p-3 text-center border border-gray-800">
+        <div id="cnt-learning" class="text-xl font-bold text-yellow-400">0</div>
+        <div class="text-xs text-gray-500">学習中</div>
+      </div>
+      <div class="bg-gray-900 rounded-xl p-3 text-center border border-gray-800">
+        <div id="cnt-mastered" class="text-xl font-bold text-green-400">0</div>
+        <div class="text-xs text-gray-500">習得済み</div>
+      </div>
+    </div>
+    <div id="muscle-list" class="space-y-1.5"></div>
+    <button onclick="resetAll()" aria-label="全データリセット"
+      class="w-full mt-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-xl text-sm text-gray-400 transition">
+      進捗リセット
+    </button>
+  </div>
+</div>
+
+<script>
+const MUSCLES = [
+  {jp:'大胸筋',en:'Pectoralis Major',func:'腕を前方・内側に動かす（水平内転）、上腕を内旋する',ant:'広背筋・三角筋後部',region:'上半身'},
+  {jp:'三角筋',en:'Deltoid',func:'肩の外転・屈曲・伸展（前部・中部・後部で異なる）',ant:'広背筋（後部）/ 大胸筋（前部）',region:'上半身'},
+  {jp:'上腕二頭筋',en:'Biceps Brachii',func:'肘の屈曲と前腕の回外',ant:'上腕三頭筋',region:'上半身'},
+  {jp:'上腕三頭筋',en:'Triceps Brachii',func:'肘の伸展',ant:'上腕二頭筋',region:'上半身'},
+  {jp:'広背筋',en:'Latissimus Dorsi',func:'上腕の伸展・内転・内旋（引く動作）',ant:'大胸筋',region:'上半身'},
+  {jp:'僧帽筋',en:'Trapezius',func:'肩甲骨の挙上・後退・下制（上中下部で異なる）',ant:'前鋸筋',region:'上半身'},
+  {jp:'前鋸筋',en:'Serratus Anterior',func:'肩甲骨の外転・前傾・上方回旋',ant:'僧帽筋中下部・菱形筋',region:'上半身'},
+  {jp:'菱形筋',en:'Rhomboids',func:'肩甲骨の内転・挙上・後傾',ant:'前鋸筋',region:'上半身'},
+  {jp:'上腕筋',en:'Brachialis',func:'肘の屈曲（前腕回旋に関わらず）',ant:'上腕三頭筋',region:'上半身'},
+  {jp:'烏口腕筋',en:'Coracobrachialis',func:'上腕の屈曲と内転',ant:'三角筋（後部）',region:'上半身'},
+  {jp:'大腿四頭筋',en:'Quadriceps Femoris',func:'膝の伸展、股関節の屈曲（大腿直筋）',ant:'ハムストリングス',region:'下半身'},
+  {jp:'ハムストリングス',en:'Hamstrings',func:'膝の屈曲と股関節の伸展',ant:'大腿四頭筋',region:'下半身'},
+  {jp:'大殿筋',en:'Gluteus Maximus',func:'股関節の伸展・外旋・外転',ant:'腸腰筋',region:'下半身'},
+  {jp:'中殿筋',en:'Gluteus Medius',func:'股関節の外転・内旋',ant:'内転筋群',region:'下半身'},
+  {jp:'腸腰筋',en:'Iliopsoas',func:'股関節の屈曲',ant:'大殿筋',region:'下半身'},
+  {jp:'下腿三頭筋',en:'Triceps Surae',func:'足関節の底屈（つま先立ち）',ant:'前脛骨筋',region:'下半身'},
+  {jp:'前脛骨筋',en:'Tibialis Anterior',func:'足関節の背屈と内反',ant:'下腿三頭筋',region:'下半身'},
+  {jp:'内転筋群',en:'Adductor Group',func:'股関節の内転',ant:'中殿筋・小殿筋',region:'下半身'},
+  {jp:'腹直筋',en:'Rectus Abdominis',func:'体幹の屈曲（前屈）',ant:'脊柱起立筋',region:'体幹'},
+  {jp:'外腹斜筋',en:'External Oblique',func:'体幹の回旋（対側）・側屈',ant:'内腹斜筋（同側）',region:'体幹'},
+  {jp:'内腹斜筋',en:'Internal Oblique',func:'体幹の回旋（同側）・側屈',ant:'外腹斜筋（対側）',region:'体幹'},
+  {jp:'腹横筋',en:'Transversus Abdominis',func:'腹腔内圧の増大・体幹安定化',ant:'脊柱起立筋',region:'体幹'},
+  {jp:'脊柱起立筋',en:'Erector Spinae',func:'体幹の伸展・側屈',ant:'腹直筋',region:'体幹'},
+  {jp:'多裂筋',en:'Multifidus',func:'脊椎の局所安定化・伸展補助',ant:'腹横筋',region:'体幹'},
+  {jp:'腰方形筋',en:'Quadratus Lumborum',func:'腰椎の側屈・骨盤の挙上',ant:'反対側の腰方形筋',region:'体幹'},
+  {jp:'横隔膜',en:'Diaphragm',func:'呼吸（吸気時に収縮し胸腔拡大）',ant:'腹筋群（呼気）',region:'体幹'},
+];
+
+let mastery = {};
+let deck = [...MUSCLES];
+let cardIdx = 0;
+let isFlipped = false;
+let regionFilter = 'all';
+let qCorrect = 0, qWrong = 0;
+let quizItem = null;
+
+function loadMastery() {
+  mastery = JSON.parse(localStorage.getItem('muscle-mastery') || '{}');
+}
+function saveMastery() {
+  localStorage.setItem('muscle-mastery', JSON.stringify(mastery));
+}
+
+function setTab(t) {
+  ['card','quiz','list'].forEach(id => {
+    document.getElementById('section-'+id).classList.toggle('hidden', id!==t);
+    const btn = document.getElementById('tab-'+id);
+    btn.className = `flex-1 py-2 text-sm font-semibold transition ${id===t ? 'bg-rose-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`;
+  });
+  if (t === 'list') renderList();
+  if (t === 'quiz') nextQuiz();
+}
+
+function setRegion(r) {
+  regionFilter = r;
+  ['all','上半身','下半身','体幹'].forEach(id => {
+    const btn = document.getElementById('reg-'+id);
+    if (btn) btn.className = `px-3 py-1.5 text-xs font-semibold transition ${id===r ? 'bg-rose-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`;
+  });
+  deck = r === 'all' ? [...MUSCLES] : MUSCLES.filter(m => m.region === r);
+  cardIdx = 0;
+  showCard();
+}
+
+function showCard() {
+  if (!deck.length) return;
+  const m = deck[cardIdx];
+  const card = document.getElementById('flash-card');
+  card.classList.remove('flipped');
+  isFlipped = false;
+  document.getElementById('cf-jp').textContent = m.jp;
+  document.getElementById('cf-region').textContent = m.region;
+  document.getElementById('cb-en').textContent = m.en;
+  document.getElementById('cb-func').textContent = m.func;
+  document.getElementById('cb-ant').textContent = m.ant;
+  document.getElementById('card-progress').textContent = `${cardIdx+1} / ${deck.length}`;
+}
+
+function flipCard() {
+  isFlipped = !isFlipped;
+  document.getElementById('flash-card').classList.toggle('flipped', isFlipped);
+}
+
+function prevCard() {
+  cardIdx = (cardIdx - 1 + deck.length) % deck.length;
+  showCard();
+}
+
+function nextCard() {
+  cardIdx = (cardIdx + 1) % deck.length;
+  showCard();
+}
+
+function setMastery(status) {
+  if (!deck.length) return;
+  const m = deck[cardIdx];
+  mastery[m.jp] = status;
+  saveMastery();
+  nextCard();
+}
+
+// Quiz
+function nextQuiz() {
+  document.getElementById('quiz-res').classList.add('hidden');
+  const pool = regionFilter === 'all' ? MUSCLES : MUSCLES.filter(m => m.region === regionFilter);
+  quizItem = pool[Math.floor(Math.random() * pool.length)];
+  document.getElementById('quiz-func').textContent = quizItem.func;
+
+  const opts = [quizItem];
+  while (opts.length < 4) {
+    const c = pool[Math.floor(Math.random() * pool.length)];
+    if (!opts.find(o => o.jp === c.jp)) opts.push(c);
+  }
+  opts.sort(() => Math.random() - 0.5);
+
+  document.getElementById('quiz-opts').innerHTML = opts.map(o => `
+    <button onclick="checkQuiz('${o.jp.replace(/'/g,"\\'")}','${o.jp === quizItem.jp}')" aria-label="${o.jp}を選択"
+      class="py-3 bg-gray-800 hover:bg-gray-700 rounded-xl text-sm font-semibold border border-gray-700 transition">
+      ${o.jp}
+    </button>`).join('');
+}
+
+function checkQuiz(selected, isCorrectStr) {
+  const isCorrect = isCorrectStr === 'true';
+  if (!mastery[quizItem.jp]) mastery[quizItem.jp] = 'new';
+  if (isCorrect) {
+    qCorrect++;
+    if (mastery[quizItem.jp] === 'new') mastery[quizItem.jp] = 'learning';
+  } else {
+    qWrong++;
+  }
+  saveMastery();
+
+  const res = document.getElementById('quiz-res');
+  res.textContent = isCorrect ? `✓ 正解！ ${quizItem.jp}（${quizItem.en}）` : `✗ 不正解 → ${quizItem.jp}（${quizItem.en}）`;
+  res.className = `text-center mt-4 text-base font-bold ${isCorrect ? 'text-green-400' : 'text-red-400'}`;
+  res.classList.remove('hidden');
+
+  document.getElementById('qc').textContent = qCorrect;
+  document.getElementById('qw').textContent = qWrong;
+  const total = qCorrect + qWrong;
+  document.getElementById('qpct').textContent = total ? Math.round(qCorrect/total*100)+'%' : '-';
+
+  document.querySelectorAll('#quiz-opts button').forEach(b => { b.disabled = true; b.classList.add('opacity-60'); });
+  setTimeout(nextQuiz, 1800);
+}
+
+// List
+function renderList() {
+  const pool = regionFilter === 'all' ? MUSCLES : MUSCLES.filter(m => m.region === regionFilter);
+  let cntNew=0, cntLearning=0, cntMastered=0;
+  pool.forEach(m => {
+    const s = mastery[m.jp] || 'new';
+    if (s==='new') cntNew++; else if (s==='learning') cntLearning++; else cntMastered++;
+  });
+  document.getElementById('cnt-new').textContent = cntNew;
+  document.getElementById('cnt-learning').textContent = cntLearning;
+  document.getElementById('cnt-mastered').textContent = cntMastered;
+
+  const statusColors = { new:'bg-gray-400', learning:'bg-yellow-400', mastered:'bg-green-400' };
+  const statusLabels = { new:'新規', learning:'学習中', mastered:'習得済み' };
+  document.getElementById('muscle-list').innerHTML = pool.map(m => {
+    const s = mastery[m.jp] || 'new';
+    return `<div class="bg-gray-900 rounded-xl p-3 border border-gray-800 flex items-start gap-3">
+      <span class="status-dot ${statusColors[s]} mt-1.5 flex-shrink-0"></span>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="font-semibold text-sm text-rose-300">${m.jp}</span>
+          <span class="text-xs text-gray-500">${m.en}</span>
+          <span class="text-xs text-gray-600 bg-gray-800 px-1.5 rounded">${m.region}</span>
+        </div>
+        <p class="text-xs text-gray-400 leading-relaxed">${m.func}</p>
+        <p class="text-xs text-yellow-600">拮抗筋: ${m.ant}</p>
+      </div>
+      <span class="text-xs text-gray-500 flex-shrink-0">${statusLabels[s]}</span>
+    </div>`;
+  }).join('');
+}
+
+function resetAll() {
+  if (!confirm('進捗をリセットしますか？')) return;
+  mastery = {};
+  saveMastery();
+  renderList();
+}
+
+document.getElementById('flash-card').addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') flipCard();
+  if (e.key === 'ArrowRight') nextCard();
+  if (e.key === 'ArrowLeft') prevCard();
+});
+
+loadMastery();
+showCard();
+</script>
+</body>
+</html>
